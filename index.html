@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shavita Raina | Professional Web Developer Portfolio</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Custom font import for better aesthetics */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        
+        /* Define Dark Mode Colors */
+        :root {
+            --bg-dark: #1A1A1A; /* Deep Charcoal/Navy Background */
+            --bg-card: #252525; /* Dark Grey Card Background */
+            --text-light: #F0F0F0; /* Soft White Text */
+            --accent-primary: #00A896; /* Aqua Green Accent */
+            --accent-secondary: #FFC107; /* Neon Yellow/Orange Accent (for CTA) */
+            --border-subtle: #333333;
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-light); 
+        }
+
+        /* Custom scrollbar styling (Aqua Accent) */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-dark); }
+        ::-webkit-scrollbar-thumb { background: var(--accent-primary); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent-secondary); }
+        
+        /* Section Title Style */
+        .section-title {
+            position: relative;
+            padding-bottom: 0.5rem;
+            margin-bottom: 3.5rem;
+            font-size: 2.5rem; 
+            font-weight: 800; 
+            color: var(--text-light); 
+        }
+        .section-title::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 80px; 
+            height: 5px; 
+            background-color: var(--accent-primary); 
+            border-radius: 3px;
+        }
+
+        /* Skills Progress Bar Style */
+        .progress-bar-bg {
+            background-color: #333333; /* Darker grey track */
+            border-radius: 9999px;
+            height: 0.75rem;
+            overflow: hidden;
+            border: 1px solid var(--border-subtle);
+        }
+        .progress-bar-fill {
+            background-color: var(--accent-primary); 
+            height: 100%;
+            transition: width 1s ease-out;
+        }
+
+        /* Professional Card Hover Effect */
+        .pro-card {
+            transition: all 0.3s ease-in-out;
+            box-shadow: 0 5px 15px -3px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+        }
+        .pro-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgba(0, 168, 150, 0.2), 0 10px 10px -5px rgba(0, 168, 150, 0.1); /* Subtle Aqua Hover Shadow */
+        }
+
+        /* FIX: Custom Focus Class for Contact Form */
+        .focus-input:focus {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 1px var(--accent-primary);
+            outline: none;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        const API_KEY = ""; // Placeholder for Gemini API Key
+
+        // Utility function for exponential backoff retry logic
+        async function fetchWithRetry(url, options, maxRetries = 5) {
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response;
+                } catch (error) {
+                    if (i < maxRetries - 1) {
+                        const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                        console.log(`Retrying after ${delay}ms...`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    } else {
+                        throw error;
+                    }
+                }
+            }
+        }
+
+        async function generateImpactStatement() {
+            const userQuery = document.getElementById('project-description').value;
+            const outputElement = document.getElementById('impact-statement-output');
+            const button = document.querySelector('.generate-button');
+            
+            if (!userQuery.trim()) {
+                outputElement.textContent = "Please enter a brief description of your project.";
+                return;
+            }
+
+            button.disabled = true;
+            button.innerHTML = '<i data-lucide="loader-circle" class="w-5 h-5 mr-2 animate-spin"></i> Generating...';
+            lucide.createIcons(); // Re-render icons
+
+            const systemPrompt = "Act as an elite Silicon Valley Technical Recruiter. Your task is to rewrite a simple project description into a single, metrics-driven bullet point suitable for a top-tier technical resume. Use strong action verbs (e.g., Architected, Engineered, Optimized). Focus on quantifiable results, system performance, or complex technologies. DO NOT use introductory phrases like 'I developed' or 'The project was'. The response must be a single, polished sentence.";
+            
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+            };
+
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`;
+            
+            try {
+                const response = await fetchWithRetry(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "Generation failed. Please try a different query.";
+                
+                outputElement.innerHTML = `<p class="font-semibold text-white leading-relaxed">${text}</p>`;
+                
+            } catch (error) {
+                console.error("Gemini API Error:", error);
+                outputElement.textContent = "Error: Could not connect to the generation service. Check the console for details.";
+                outputElement.classList.add('text-red-400');
+            } finally {
+                button.disabled = false;
+                button.innerHTML = '<i data-lucide="zap" class="w-5 h-5 mr-2"></i> Generate Professional Statement';
+                lucide.createIcons(); // Re-render icons
+            }
+        }
+
+        function showThankYouMessage() {
+            const messageElement = document.getElementById('thank-you-message');
+            messageElement.classList.remove('hidden');
+            setTimeout(() => {
+                messageElement.classList.add('hidden');
+            }, 5000);
+            // In a real application, you would send the form data to a server here.
+        }
+    </script>
+    
+    <!-- Navigation Bar -->
+    <nav class="sticky top-0 z-50 bg-bg-dark border-b border-border-subtle shadow-2xl">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo/Name -->
+                <div class="flex-shrink-0">
+                    <a href="#home" class="text-3xl font-extrabold text-white hover:text-accent-secondary transition duration-300" style="color: var(--accent-primary);">
+                        S<span style="color: var(--text-light);">R</span>.
+                    </a>
+                </div>
+                
+                <!-- Desktop Menu -->
+                <div class="hidden md:flex space-x-8 text-lg font-semibold">
+                    <a href="#about" class="text-gray-400 hover:text-accent-primary transition duration-300">About</a>
+                    <a href="#skills" class="text-gray-400 hover:text-accent-primary transition duration-300">Skills</a>
+                    <a href="#experience" class="text-gray-400 hover:text-accent-primary transition duration-300">Experience</a>
+                    <a href="#projects" class="text-gray-400 hover:text-accent-primary transition duration-300">Projects</a>
+                    <!-- Contact button uses the Secondary Accent (Neon Yellow) -->
+                    <a href="#contact" style="background-color: var(--accent-secondary);" class="text-bg-dark rounded-full px-5 py-2 text-sm font-bold hover:bg-yellow-500 transition duration-300 shadow-xl shadow-accent-secondary/30">Let's Talk</a>
+                </div>
+                
+                <!-- Mobile Menu Button -->
+                <div class="md:hidden">
+                    <button id="mobile-menu-button" type="button" class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-bg-dark" style="background-color: var(--accent-primary);" aria-controls="mobile-menu" aria-expanded="false">
+                        <span class="sr-only">Open main menu</span>
+                        <i data-lucide="menu" class="block h-6 w-6 text-bg-dark"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Menu (Hidden by default) -->
+        <div class="md:hidden hidden bg-bg-dark" id="mobile-menu">
+            <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3 flex flex-col items-center">
+                <a href="#about" class="text-gray-400 hover:text-accent-primary block px-3 py-2 rounded-md text-base font-medium transition duration-300 w-full text-center">About</a>
+                <a href="#skills" class="text-gray-400 hover:text-accent-primary block px-3 py-2 rounded-md text-base font-medium transition duration-300 w-full text-center">Skills</a>
+                <a href="#experience" class="text-gray-400 hover:text-accent-primary block px-3 py-2 rounded-md text-base font-medium transition duration-300 w-full text-center">Experience</a>
+                <a href="#projects" class="text-gray-400 hover:text-accent-primary block px-3 py-2 rounded-md text-base font-medium transition duration-300 w-full text-center">Projects</a>
+                <a href="#contact" style="background-color: var(--accent-secondary);" class="text-bg-dark rounded-full px-4 py-2 text-base font-medium mt-2 transition duration-300 w-fit shadow-md">Contact Me</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header id="home" class="py-20 md:py-32" style="background-color: var(--bg-dark);">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-12">
+                
+                <!-- Text Content -->
+                <div class="md:w-3/5 text-center md:text-left">
+                    <!-- FIXED: PROFESSIONAL TAGLINE -->
+                    <p class="text-lg font-bold mb-3 tracking-widest" style="color: var(--accent-primary);">Hi I Am Shavita Raina</A></p>
+                    <h1 class="text-5xl md:text-7xl lg:text-8xl font-extrabold leading-tight mb-6" style="color: var(--text-light);">
+                        I build <span style="color: var(--accent-primary);">Scalable</span> and <span style="color: var(--accent-primary);">Dynamic</span> Systems.
+                    </h1>
+                    <p class="text-xl text-gray-400 mb-10 max-w-xl">
+                        As a dedicated 3rd-year CSE student, I translate complex requirements into robust, production-ready web applications. My focus is on writing clean code and ensuring optimal performance across the full stack.
+                    </p>
+                    <div class="flex justify-center md:justify-start space-x-6">
+                        <a href="#contact" style="background-color: var(--accent-primary);" class="text-bg-dark font-semibold rounded-full shadow-lg hover:opacity-90 transition duration-300 transform hover:scale-105 px-8 py-3 shadow-accent-primary/40">
+                            Let's Work Together
+                        </a>
+                        <a href="#" class="px-8 py-3 bg-bg-dark text-gray-200 font-semibold border-2 border-gray-600 rounded-full shadow-lg hover:bg-gray-800 transition duration-300 transform hover:scale-105">
+                            Download CV (Placeholder)
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Image Placeholder -->
+                <div class="md:w-2/5 flex justify-center">
+                    <div class="w-72 h-72 md:w-96 md:h-96 rounded-3xl flex items-center justify-center shadow-2xl border-4 overflow-hidden transform hover:rotate-2 transition duration-500" style="background-color: var(--bg-card); border-color: var(--accent-primary);">
+                        <i data-lucide="monitor-dot" class="w-32 h-32" style="color: var(--accent-primary);"></i>
+                        <span class="absolute text-sm font-semibold bottom-4" style="color: var(--text-light);">Professional Photo Placeholder</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Statistics Section (Deep Charcoal BG) -->
+    <section class="py-12 shadow-inner" style="background-color: var(--bg-card);">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+                <div class="p-4 rounded-xl">
+                    <p class="text-5xl font-extrabold" style="color: var(--accent-secondary);">3+</p>
+                    <p class="text-md md:text-lg font-medium mt-1 text-gray-400">Major Projects</p>
+                </div>
+                <div class="p-4 rounded-xl">
+                    <p class="text-5xl font-extrabold" style="color: var(--accent-secondary);">90%+</p>
+                    <p class="text-md md:text-lg font-medium mt-1 text-gray-400">Code Quality Score</p>
+                </div>
+                <div class="p-4 rounded-xl">
+                    <p class="text-5xl font-extrabold" style="color: var(--accent-secondary);">4+</p>
+                    <p class="text-md md:text-lg font-medium mt-1 text-gray-400">Core Languages</p>
+                </div>
+                <div class="p-4 rounded-xl">
+                    <p class="text-5xl font-extrabold" style="color: var(--accent-secondary);">DSA</p>
+                    <p class="text-md md:text-lg font-medium mt-1 text-gray-400">Foundation Strong</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section id="about" class="py-20" style="background-color: var(--bg-dark);">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="section-title">About Me & My Journey</h2>
+
+            <div class="lg:flex lg:space-x-12">
+                
+                <!-- Left Column: My Journey (Profile Summary) -->
+                <div class="lg:w-2/3">
+                    <div class="p-8 rounded-2xl pro-card mb-10" style="background-color: var(--bg-card);">
+                        <h3 class="text-3xl font-bold mb-4" style="color: var(--text-light);">My Journey</h3>
+                        <p class="text-lg text-gray-300 leading-relaxed mb-4">
+                            With a Computer Science background from MIET, I have actively bridged the gap between theoretical computing principles and modern web development practices. My journey started with mastering core DSA and OOP, which now underpins my commitment to building **efficient, low-latency, and scalable web solutions.**
+                        </p>
+                        <p class="text-lg text-gray-300 leading-relaxed mb-6">
+                            Today, I specialize in the MERN stack (MongoDB, Express, React, Node) and Python frameworks (Django), focusing on end-to-end development. I don't just write code—I architect systems designed for growth, performance, and maintainability.
+                        </p>
+                        
+                        <!-- Mini Stats Bar in About Section -->
+                        <div class="grid grid-cols-3 gap-6 text-center mt-8 p-4 border rounded-xl" style="background-color: var(--bg-dark); border-color: var(--border-subtle);">
+                            <div>
+                                <p class="text-3xl font-extrabold" style="color: var(--accent-primary);">3rd</p>
+                                <p class="text-sm text-gray-400">Year CSE Student</p>
+                            </div>
+                            <div>
+                                <p class="text-3xl font-extrabold" style="color: var(--accent-primary);">10K+</p>
+                                <p class="text-sm text-gray-400">Lines of Code</p>
+                            </div>
+                            <div>
+                                <p class="text-3xl font-extrabold" style="color: var(--accent-primary);">MERN</p>
+                                <p class="text-sm text-gray-400">Core Stack</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- What Drives Me (Missions) -->
+                    <div class="p-8 rounded-2xl pro-card" style="background-color: var(--bg-card);">
+                        <h3 class="text-3xl font-bold mb-6" style="color: var(--text-light);">What Drives Me</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="flex items-start">
+                                <i data-lucide="target" class="w-6 h-6 mr-4 flex-shrink-0 mt-1" style="color: var(--accent-secondary);"></i>
+                                <div>
+                                    <h4 class="font-bold text-xl" style="color: var(--text-light);">Mission-Driven</h4>
+                                    <p class="text-gray-400 text-base">Creating technical strategies that solve real-world problems and drive measurable user value.</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <i data-lucide="database" class="w-6 h-6 mr-4 flex-shrink-0 mt-1" style="color: var(--accent-secondary);"></i>
+                                <div>
+                                    <h4 class="font-bold text-xl" style="color: var(--text-light);">Performance-Focused</h4>
+                                    <p class="text-gray-400 text-base">Prioritizing efficient algorithms and minimal latency across both front-end and back-end.</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <i data-lucide="lightbulb" class="w-6 h-6 mr-4 flex-shrink-0 mt-1" style="color: var(--accent-secondary);"></i>
+                                <div>
+                                    <h4 class="font-bold text-xl" style="color: var(--text-light);">Innovation-First</h4>
+                                    <p class="text-gray-400 text-base">Constantly learning and integrating new technologies and design patterns to stay cutting-edge.</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start">
+                                <i data-lucide="check-circle" class="w-6 h-6 mr-4 flex-shrink-0 mt-1" style="color: var(--accent-secondary);"></i>
+                                <div>
+                                    <h4 class="font-bold text-xl" style="color: var(--text-light);">Code-Centric</h4>
+                                    <p class="text-gray-400 text-base">Commitment to clean code architecture, comprehensive testing, and collaborative version control (Git).</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Right Column: Quick Contact & Education -->
+                <div class="lg:w-1/3">
+                    <div class="p-8 rounded-2xl pro-card h-fit" style="background-color: var(--bg-card);">
+                        <h3 class="text-2xl font-bold mb-6 flex items-center" style="color: var(--text-light);">
+                            <i data-lucide="graduation-cap" class="w-6 h-6 mr-3" style="color: var(--accent-primary);"></i>
+                            Quick Info
+                        </h3>
+                        <ul class="space-y-4 text-lg text-gray-300">
+                            <li class="flex items-center">
+                                <i data-lucide="user" class="w-5 h-5 mr-4" style="color: var(--accent-primary);"></i>
+                                <span class="font-bold" style="color: var(--text-light);">Shavita Raina</span>
+                            </li>
+                            <li class="flex items-center">
+                                <i data-lucide="map-pin" class="w-5 h-5 mr-4" style="color: var(--accent-primary);"></i>
+                                <span>Jammu, J&K, India</span>
+                            </li>
+                            <li class="flex items-center">
+                                <i data-lucide="book-open" class="w-5 h-5 mr-4" style="color: var(--accent-primary);"></i>
+                                <span class="font-bold">B.Tech, CSE (3rd Year)</span>
+                            </li>
+                            <li class="flex items-center">
+                                <i data-lucide="building" class="w-5 h-5 mr-4" style="color: var(--accent-primary);"></i>
+                                <span>MIET, Jammu</span>
+                            </li>
+                        </ul>
+                        <div class="mt-6 border-t pt-6" style="border-color: var(--border-subtle);">
+                            <p class="text-gray-300 mb-2 font-semibold">Contact:</p>
+                            <a href="mailto:rainashavita942@gmail.com" class="flex items-center hover:text-accent-secondary transition duration-300 underline-offset-4" style="color: var(--accent-primary);">
+                                <i data-lucide="mail" class="w-5 h-5 mr-3"></i> rainashavita942@gmail.com
+                            </a>
+                            <p class="flex items-center mt-2" style="color: var(--accent-primary);">
+                                <i data-lucide="phone" class="w-5 h-5 mr-3"></i> <span class="text-gray-300">+91 88250 62450</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Skills Section (Progress Bars) -->
+    <section id="skills" class="py-20" style="background-color: var(--bg-dark);">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="section-title">Skills & Expertise</h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-10 p-8 rounded-2xl pro-card" style="background-color: var(--bg-card);">
+                
+                <!-- Skill Group 1: Core & Backend -->
+                <div>
+                    <h3 class="text-2xl font-bold mb-6 border-b pb-2" style="color: var(--text-light); border-color: var(--border-subtle);">Core Computing & Backend</h3>
+                    <div class="space-y-6">
+                        <div class="skill-item">
+                            <div class="flex justify-between mb-1">
+                                <span class="text-lg font-medium text-gray-300">Data Structures & Algorithms (DSA)</span>
+                                <span class="text-sm font-bold" style="color: var(--accent-primary);">90%</span>
+                            </div>
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill" style="width: 90%;"></div>
+                            </div>
+                        </div>
+                        <div class="skill-item">
+                            <div class="flex justify-between mb-1">
+                                <span class="text-lg font-medium text-gray-300">JavaScript / Node.js (API Development)</span>
+                                <span class="text-sm font-bold" style="color: var(--accent-primary);">85%</span>
+                            </div>
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill" style="width: 85%;"></div>
+                            </div>
+                        </div>
+                        <div class="skill-item">
+                            <div class="flex justify-between mb-1">
+                                <span class="text-lg font-medium text-gray-300">Python / Django / Flask</span>
+                                <span class="text-sm font-bold" style="color: var(--accent-primary);">80%</span>
+                            </div>
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill" style="width: 80%;"></div>
+                            </div>
+                        </div>
+                        <div class="skill-item">
+                            <div class="flex justify-between mb-1">
+                                <span class="text-lg font-medium text-gray-300">SQL (PostgreSQL/MySQL) & MongoDB</span>
+                                <span class="text-sm font-bold" style="color: var(--accent-primary);">75%</span>
+                            </div>
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill" style="width: 75%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Skill Group 2: Frontend & Tools -->
+                <div>
+                    <h3 class="text-2xl font-bold mb-6 border-b pb-2" style="color: var(--text-light); border-color: var(--border-subtle);">Frontend Frameworks & Tools</h3>
+                    <div class="space-y-6">
+                        <div class="skill-item">
+                            <div class="flex justify-between mb-1">
+                                <span class="text-lg font-medium text-gray-300">React.js / Frontend Architecture</span>
+                                <span class="text-sm font-bold" style="color: var(--accent-primary);">92%</span>
+                            </div>
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill" style="width: 92%;"></div>
+                            </div>
+                        </div>
+                        <div class="skill-item">
+                            <div class="flex justify-between mb-1">
+                                <span class="text-lg font-medium text-gray-300">HTML5 / CSS3 / Tailwind CSS</span>
+                                <span class="text-sm font-bold" style="color: var(--accent-primary);">95%</span>
+                            </div>
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill" style="width: 95%;"></div>
+                            </div>
+                        </div>
+                        <div class="skill-item">
+                            <div class="flex justify-between mb-1">
+                                <span class="text-lg font-medium text-gray-300">Git / Version Control (Advanced)</span>
+                                <span class="text-sm font-bold" style="color: var(--accent-primary);">88%</span>
+                            </div>
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill" style="width: 88%;"></div>
+                            </div>
+                        </div>
+                        <div class="skill-item">
+                            <div class="flex justify-between mb-1">
+                                <span class="text-lg font-medium text-gray-300">Cloud Fundamentals (AWS/GCP Basics)</span>
+                                <span class="text-sm font-bold" style="color: var(--accent-primary);">60%</span>
+                            </div>
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill" style="width: 60%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Experience Section (Timeline) -->
+    <section id="experience" class="py-20" style="background-color: var(--bg-dark);">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="section-title">Work & Academic Experience</h2>
+
+            <div class="relative border-l-4 space-y-12 ml-4 md:ml-0 pt-2" style="border-color: var(--accent-primary);">
+                
+                <!-- Timeline Item 1: MIET Academic Focus -->
+                <div class="relative pl-8 md:pl-12">
+                    <span class="absolute -left-[14px] md:-left-[22px] top-0 w-8 h-8 rounded-full border-4 border-bg-dark shadow-xl flex items-center justify-center" style="background-color: var(--accent-secondary);">
+                        <i data-lucide="graduation-cap" class="w-4 h-4 text-bg-dark"></i>
+                    </span>
+                    <p class="text-sm text-gray-400 font-bold mb-1 tracking-wider">2022 - Present</p>
+                    <h3 class="text-xl font-extrabold" style="color: var(--text-light);">B.Tech, Computer Science & Engineering</h3>
+                    <p class="text-lg text-gray-300 font-medium">Model Institute of Engineering and Technology (MIET)</p>
+                    <ul class="list-disc list-inside text-gray-400 text-base mt-2 space-y-1 ml-4 p-3 rounded-lg" style="background-color: var(--bg-card); border-left: 3px solid var(--accent-primary);">
+                        <li>Achieved top ranking in Data Structures & Algorithm modules, focusing on efficient $\mathcal{O}(n)$ solutions.</li>
+                        <li>Completed core coursework in OS, CN, and DBMS, applying principles to system design projects.</li>
+                    </ul>
+                </div>
+
+                <!-- Timeline Item 2: Major Personal Project (Acting as Experience) -->
+                <div class="relative pl-8 md:pl-12">
+                    <span class="absolute -left-[14px] md:-left-[22px] top-0 w-8 h-8 rounded-full border-4 border-bg-dark shadow-xl flex items-center justify-center" style="background-color: var(--accent-primary);">
+                        <i data-lucide="monitor" class="w-4 h-4 text-bg-dark"></i>
+                    </span>
+                    <p class="text-sm text-gray-400 font-bold mb-1 tracking-wider">Jan 2024 - Ongoing</p>
+                    <h3 class="text-xl font-extrabold" style="color: var(--text-light);">Personal Project: Real-Time Polling Application</h3>
+                    <p class="text-lg text-gray-300 font-medium">Full-Stack Development (React/Node/MongoDB)</p>
+                    <ul class="list-disc list-inside text-gray-400 text-base mt-2 space-y-1 ml-4 p-3 rounded-lg" style="background-color: var(--bg-card); border-left: 3px solid var(--accent-primary);">
+                        <li>Engineered a full-stack application from scratch, handling authentication, routing, and real-time data visualization.</li>
+                        <li>Implemented WebSocket communication for instant poll updates, achieving sub-100ms latency on results display.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Projects Section -->
+    <section id="projects" class="py-20" style="background-color: var(--bg-dark);">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="section-title">Key Projects & Deliverables</h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
+                
+                <!-- Project 1: E-commerce Backend API -->
+                <div class="rounded-2xl pro-card overflow-hidden border-t-4" style="border-color: var(--accent-secondary); background-color: var(--bg-card);">
+                    <div class="p-6">
+                        <h3 class="text-2xl font-bold mb-3" style="color: var(--text-light);">E-commerce Backend API</h3>
+                        <p class="text-gray-400 mb-4">
+                            Designed and implemented a scalable RESTful API handling core e-commerce logistics (users, products, orders).
+                        </p>
+                        <div class="flex flex-wrap gap-2 mb-4">
+                            <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full border" style="background-color: var(--bg-dark); color: var(--accent-primary); border-color: var(--border-subtle);">Python (Django)</span>
+                            <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full border" style="background-color: var(--bg-dark); color: var(--accent-primary); border-color: var(--border-subtle);">PostgreSQL</span>
+                            <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full border" style="background-color: var(--bg-dark); color: var(--accent-primary); border-color: var(--border-subtle);">REST API</span>
+                        </div>
+                        <a href="#" class="font-bold hover:text-accent-secondary transition duration-300 flex items-center group" style="color: var(--accent-primary);">
+                            View Project
+                            <i data-lucide="external-link" class="w-4 h-4 ml-2 group-hover:translate-x-1 transition duration-300"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Project 2: Real-Time Chat Application -->
+                <div class="rounded-2xl pro-card overflow-hidden border-t-4" style="border-color: var(--accent-secondary); background-color: var(--bg-card);">
+                    <div class="p-6">
+                        <h3 class="text-2xl font-bold mb-3" style="color: var(--text-light);">Real-Time Chat App</h3>
+                        <p class="text-gray-400 mb-4">
+                            Developed a secure, real-time messaging platform using the MERN stack and WebSockets.
+                        </p>
+                        <div class="flex flex-wrap gap-2 mb-4">
+                            <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full border" style="background-color: var(--bg-dark); color: var(--accent-primary); border-color: var(--border-subtle);">React.js</span>
+                            <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full border" style="background-color: var(--bg-dark); color: var(--accent-primary); border-color: var(--border-subtle);">Node.js</span>
+                            <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full border" style="background-color: var(--bg-dark); color: var(--accent-primary); border-color: var(--border-subtle);">WebSockets</span>
+                        </div>
+                        <a href="#" class="font-bold hover:text-accent-secondary transition duration-300 flex items-center group" style="color: var(--accent-primary);">
+                            View Project
+                            <i data-lucide="external-link" class="w-4 h-4 ml-2 group-hover:translate-x-1 transition duration-300"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Project 3: Image Classification Model -->
+                <div class="rounded-2xl pro-card overflow-hidden border-t-4" style="border-color: var(--accent-secondary); background-color: var(--bg-card);">
+                    <div class="p-6">
+                        <h3 class="text-2xl font-bold mb-3" style="color: var(--text-light);">Image Classification Model</h3>
+                        <p class="text-gray-400 mb-4">
+                            Implemented a CNN using TensorFlow/Python for computer vision tasks, achieving high classification accuracy.
+                        </p>
+                        <div class="flex flex-wrap gap-2 mb-4">
+                            <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full border" style="background-color: var(--bg-dark); color: var(--accent-primary); border-color: var(--border-subtle);">Python</span>
+                            <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full border" style="background-color: var(--bg-dark); color: var(--accent-primary); border-color: var(--border-subtle);">TensorFlow</span>
+                            <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full border" style="background-color: var(--bg-dark); color: var(--accent-primary); border-color: var(--border-subtle);">Data Science</span>
+                        </div>
+                        <a href="#" class="font-bold hover:text-accent-secondary transition duration-300 flex items-center group" style="color: var(--accent-primary);">
+                            View Project
+                            <i data-lucide="external-link" class="w-4 h-4 ml-2 group-hover:translate-x-1 transition duration-300"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gemini AI Impact Statement Generator -->
+            <div class="p-8 rounded-2xl pro-card border-2" style="background-color: var(--bg-card); border-color: var(--accent-primary);">
+                <h3 class="text-2xl font-bold mb-4 flex items-center" style="color: var(--text-light);">
+                    <i data-lucide="gem" class="w-6 h-6 mr-3" style="color: var(--accent-primary);"></i>
+                    Project Impact Generator ✨ (Gemini AI)
+                </h3>
+                <p class="text-gray-400 mb-4">
+                    Instantly turn simple project descriptions into high-impact, professional resume bullet points.
+                </p>
+                <div class="space-y-4">
+                    <div>
+                        <textarea id="project-description" rows="3" placeholder="Example: I made a chat application using Node and MongoDB." class="w-full p-3 border rounded-lg shadow-sm focus-input outline-none" style="background-color: var(--bg-dark); border-color: var(--border-subtle); color: var(--text-light);"></textarea>
+                    </div>
+                    <button onclick="generateImpactStatement()" class="generate-button flex items-center justify-center px-6 py-3 text-bg-dark font-bold rounded-full shadow-lg hover:opacity-90 transition duration-300 shadow-accent-secondary/30" style="background-color: var(--accent-secondary);">
+                        <i data-lucide="zap" class="w-5 h-5 mr-2"></i> Generate Professional Statement
+                    </button>
+                    <div id="impact-statement-output" class="min-h-[50px] p-4 border rounded-lg text-gray-400 italic" style="background-color: var(--bg-dark); border-color: var(--accent-primary);">
+                        The professional statement will appear here.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="py-20" style="background-color: var(--bg-dark);">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="section-title">Get In Touch</h2>
+
+            <div class="flex flex-col lg:flex-row gap-12">
+                
+                <!-- Contact Info -->
+                <div class="lg:w-1/3 p-8 rounded-2xl pro-card" style="background-color: var(--bg-card);">
+                    <p class="text-xl text-gray-300 mb-6 font-semibold">
+                        Ready to discuss a project, internship, or collaboration? I respond quickly and value clear communication.
+                    </p>
+                    <div class="space-y-6">
+                        <div class="flex items-start">
+                            <i data-lucide="mail" class="w-6 h-6 mr-4 flex-shrink-0 mt-1" style="color: var(--accent-primary);"></i>
+                            <div>
+                                <h4 class="font-bold" style="color: var(--text-light);">Email Address</h4>
+                                <a href="mailto:rainashavita942@gmail.com" class="hover:underline font-medium" style="color: var(--accent-primary);">rainashavita942@gmail.com</a>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <i data-lucide="phone" class="w-6 h-6 mr-4 flex-shrink-0 mt-1" style="color: var(--accent-primary);"></i>
+                            <div>
+                                <h4 class="font-bold" style="color: var(--text-light);">Phone Number</h4>
+                                <p class="text-gray-300 font-medium">+91 88250 62450</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <i data-lucide="map-pin" class="w-6 h-6 mr-4 flex-shrink-0 mt-1" style="color: var(--accent-primary);"></i>
+                            <div>
+                                <h4 class="font-bold" style="color: var(--text-light);">Location</h4>
+                                <p class="text-gray-300 font-medium">Jammu, India</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contact Form -->
+                <div class="lg:w-2/3 p-8 rounded-2xl pro-card" style="background-color: var(--bg-card);">
+                    <h3 class="text-2xl font-bold mb-6" style="color: var(--text-light);">Send Me a Message</h3>
+                    <form onsubmit="event.preventDefault(); showThankYouMessage();" class="space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="name" class="block text-sm font-bold text-gray-300 mb-1">Full Name</label>
+                                <input type="text" id="name" name="name" placeholder="Your Name" required class="mt-1 block w-full px-4 py-3 border rounded-lg shadow-sm focus-input outline-none" style="background-color: var(--bg-dark); border-color: var(--border-subtle); color: var(--text-light);">
+                            </div>
+                            <div>
+                                <label for="email" class="block text-sm font-bold text-gray-300 mb-1">Email Address</label>
+                                <input type="email" id="email" name="email" placeholder="you@example.com" required class="mt-1 block w-full px-4 py-3 border rounded-lg shadow-sm focus-input outline-none" style="background-color: var(--bg-dark); border-color: var(--border-subtle); color: var(--text-light);">
+                            </div>
+                        </div>
+                        <div>
+                            <label for="subject" class="block text-sm font-bold text-gray-300 mb-1">Subject</label>
+                            <input type="text" id="subject" name="subject" placeholder="Project Inquiry / Internship Opportunity" required class="mt-1 block w-full px-4 py-3 border rounded-lg shadow-sm focus-input outline-none" style="background-color: var(--bg-dark); border-color: var(--border-subtle); color: var(--text-light);">
+                        </div>
+                        <div>
+                            <label for="message" class="block text-sm font-bold text-gray-300 mb-1">Message</label>
+                            <textarea id="message" name="message" rows="5" placeholder="Tell me about the opportunity..." required class="mt-1 block w-full px-4 py-3 border rounded-lg shadow-sm focus-input outline-none" style="background-color: var(--bg-dark); border-color: var(--border-subtle); color: var(--text-light);"></textarea>
+                        </div>
+                        <!-- Submit button uses Primary Accent color -->
+                        <button type="submit" class="w-full md:w-auto px-8 py-3 text-bg-dark font-bold rounded-full shadow-lg hover:opacity-90 transition duration-300 transform hover:scale-[1.01] shadow-accent-primary/30" style="background-color: var(--accent-primary);">
+                            Send Message 🚀
+                        </button>
+                    </form>
+                    <p id="thank-you-message" class="mt-6 text-center p-3 rounded-lg hidden" style="color: var(--accent-secondary); background-color: var(--bg-dark); border: 1px solid var(--accent-secondary);">
+                        Thank you for your message! This is a placeholder confirmation.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer (Dark Background) -->
+    <footer class="py-8" style="background-color: var(--bg-dark); border-top: 1px solid var(--border-subtle);">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <p class="text-gray-400">&copy; 2025 Shavita Raina. All rights reserved To vivek kashav. Made with <i data-lucide="heart" class="w-4 h-4 inline-block" style="color: var(--accent-secondary);"></i> and Code.</p>
+            <div class="flex justify-center space-x-6 mt-4">
+                <a href="#" class="text-gray-400 hover:text-accent-primary transition duration-300 transform hover:scale-110">
+                    <i data-lucide="linkedin" class="w-6 h-6"></i>
+                </a>
+                <a href="#" class="text-gray-400 hover:text-accent-primary transition duration-300 transform hover:scale-110">
+                    <i data-lucide="github" class="w-6 h-6"></i>
+                </a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript for Mobile Menu, Lucide Icons, and Form -->
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Mobile Menu Toggle
+        document.getElementById('mobile-menu-button').addEventListener('click', function() {
+            const menu = document.getElementById('mobile-menu');
+            const isExpanded = this.getAttribute('aria-expanded') === 'true' || false;
+            this.setAttribute('aria-expanded', !isExpanded);
+            menu.classList.toggle('hidden', isExpanded);
+        });
+
+        // Hide mobile menu after clicking a link
+        document.querySelectorAll('#mobile-menu a').forEach(link => {
+            link.addEventListener('click', () => {
+                const menu = document.getElementById('mobile-menu');
+                // Only try to hide if we know it's a mobile link
+                if (menu.classList.contains('hidden') === false) {
+                    document.getElementById('mobile-menu-button').setAttribute('aria-expanded', 'false');
+                    menu.classList.add('hidden');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
